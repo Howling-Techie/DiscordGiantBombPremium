@@ -267,11 +267,12 @@ namespace GiantBombPremiumBot
 
                 return null;
             }
+            json = File.ReadAllText("crypto.json", new UTF8Encoding(false));
+            cfg = JsonConvert.DeserializeObject<CryptoConfig>(json);
 
             byte[] key = System.Text.Encoding.ASCII.GetBytes(cfg.Key);
             byte[] iv = System.Text.Encoding.ASCII.GetBytes(cfg.IV);
-            json = File.ReadAllText("crypto.json", new UTF8Encoding(false));
-            cfg = JsonConvert.DeserializeObject<CryptoConfig>(json);
+
             Dictionary<ulong, User> result = new Dictionary<ulong, User>();
             List<User> users = new List<User>();
             string path = "users.txt";
