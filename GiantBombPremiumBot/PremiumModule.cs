@@ -38,7 +38,7 @@ namespace GiantBombPremiumBot
         [SlashCommand("Connect", "Link your Discord account with Giant Bomb")]
         public async Task ConnectCommand(InteractionContext ctx)
         {
-            Program.UpdateUser(ctx.Member);
+            await Program.UpdateUser(ctx.Member);
             bool premium = Program.IsUserPremium(ctx.User);
             if (premium)
             {
@@ -111,8 +111,8 @@ namespace GiantBombPremiumBot
         [SlashCommand("Recheck", "Link your Discord account with Giant Bomb")]
         public async Task RecheckCommand(InteractionContext ctx)
         {
-            Program.UpdateUser(ctx.Member);
-            bool premium = Program.IsUserPremium(ctx.User);
+            await Program.UpdateUser(ctx.Member);
+            bool premium = await Program.UpdateUser(ctx.Member);
             DiscordInteractionResponseBuilder responseBuilder = new();
             responseBuilder.IsEphemeral = true;
             responseBuilder.Content = premium ? "After rechecking, you are premium" : "After rechecking, you are not premium";
@@ -124,7 +124,7 @@ namespace GiantBombPremiumBot
         public async Task StatusCommand(InteractionContext ctx)
         {
             Console.WriteLine("Fetching status for " + ctx.Member.DisplayName);
-            string status = Program.GetStatus(ctx);
+            string status = await Program.GetStatus(ctx);
             DiscordInteractionResponseBuilder responseBuilder = new();
             responseBuilder.Content = status;
             responseBuilder.AsEphemeral(true);

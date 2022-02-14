@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace GiantBombPremiumBot
 {
-    internal sealed class BotConfig
+    public sealed class BotConfig
     {
         [JsonProperty("token")]
         public string Token { get; private set; } = string.Empty;

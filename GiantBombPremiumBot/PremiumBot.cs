@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace GiantBombPremiumBot
 {
-    class PremiumBot
+    public class PremiumBot
     {
         internal static EventId TestBotEventId { get; } = new EventId(1000, "TestBot");
 

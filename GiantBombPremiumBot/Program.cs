@@ -30,13 +30,13 @@ namespace GiantBombPremiumBot
         #region Bot Info
         public static CancellationTokenSource CancelTokenSource { get; } = new CancellationTokenSource();
         private static CancellationToken CancelToken => CancelTokenSource.Token;
-        private static List<PremiumBot> Shards { get; } = new List<PremiumBot>();
+        public static List<PremiumBot> Shards { get; } = new List<PremiumBot>();
         #endregion
 
         public static DateTime lastRun = new DateTime();
         public static DateTime nextRun = DateTime.UtcNow;
 
-        public static Timer timer;
+        public static Timer? timer = null;
 
         public static UserManager userManager = new UserManager();
 
@@ -109,9 +109,9 @@ namespace GiantBombPremiumBot
             userManager.RemoveUser(member.Id);
         }
 
-        internal static string GetStatus(InteractionContext ctx)
+        internal static async Task<string> GetStatus(InteractionContext ctx)
         {
-            return userManager.GetStatus(ctx.User.Id);
+            return await userManager.GetStatus(ctx.User.Id);
         }
 
         private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
@@ -126,14 +126,13 @@ namespace GiantBombPremiumBot
 
         internal static bool IsUserPremium(DiscordUser user)
         {
-            return userManager.IsUserPremium(user.Id);
+            return userManager.IsUserPremium(user.Id).Result;
         }
-
-        public static async void UpdateUser(DiscordMember member)
+        public static async Task<bool> UpdateUser(DiscordMember member)
         {
             if (userManager.IsUserRegistered(member.Id))
             {
-                bool premium = userManager.UpdateUser(member.Id);
+                bool premium = await userManager.UpdateUser(member.Id);
 
                 DiscordRole? premiumRole = null;
                 DiscordRole? premiumRoleColour = null;
@@ -162,7 +161,9 @@ namespace GiantBombPremiumBot
                     await member.RevokeRoleAsync(premiumRole);
                     await member.RevokeRoleAsync(premiumRoleColour);
                 }
+                return premium;
             }
+            return false;
         }
 
 
@@ -190,6 +191,7 @@ namespace GiantBombPremiumBot
                 var roles = guild.Roles;
                 DiscordRole? premiumRole = null;
                 DiscordRole? premiumRoleColour = null;
+
                 foreach (var role in roles)
                 {
                     if (role.Value.Name == "Premium")
@@ -209,18 +211,7 @@ namespace GiantBombPremiumBot
                 {
                     if (userManager.IsUserRegistered(user.Key) && guild.Members.ContainsKey(user.Key))
                     {
-                        var guildUser = guild.Members[user.Key];
-                        bool premiumStatus = userManager.IsUserPremium(user.Key);
-                        if (premiumStatus)
-                        {
-                            await guildUser.GrantRoleAsync(premiumRole);
-                            //await user.Value.GrantRoleAsync(premiumRoleColour);
-                        }
-                        else if (guildUser.Roles.Contains(premiumRole))
-                        {
-                            await guildUser.RevokeRoleAsync(premiumRole);
-                            await guildUser.RevokeRoleAsync(premiumRoleColour);
-                        }
+                        await userManager.IsUserPremium(user.Key);
                     }
                 }
             }

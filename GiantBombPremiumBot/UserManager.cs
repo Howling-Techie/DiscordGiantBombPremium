@@ -27,7 +27,7 @@ namespace GiantBombPremiumBot
             JUsers.UpdateDocument(users, key, iv);
         }
 
-        public bool IsUserPremium(ulong userID)
+        public async Task<bool> IsUserPremium(ulong userID)
         {
             //If they're not in the system, they cannot be premium
             if (!users.ContainsKey(userID))
@@ -41,19 +41,19 @@ namespace GiantBombPremiumBot
             }
 
             //If information is outdated, update and return information
-            bool status = UpdateUser(userID);
+            bool status = await UpdateUser(userID);
             WriteUserInfo();
             return status;
         }
 
-        internal string GetStatus(ulong userID)
+        internal async Task<string> GetStatus(ulong userID)
         {
             if (!users.ContainsKey(userID))
             {
                 return "We have no record of your Giant Bomb account";
             }
             if (users[userID].nextCheck < DateTime.UtcNow)
-                UpdateUser(userID);
+                await UpdateUser(userID);
             if (users[userID].premiumStatus)
                 return "You're currently listed as a premium user, and will be next checked on <t:" + ((DateTimeOffset)users[userID].nextCheck).ToUnixTimeSeconds() + ":D>.";
             else
@@ -67,7 +67,7 @@ namespace GiantBombPremiumBot
             return "";
         }
 
-        public bool UpdateUser(ulong userID)
+        public async Task<bool> UpdateUser(ulong userID)
         {
             string URLString = "https://www.giantbomb.com/app/premiumdiscordbot/get-result?regCode=" + users[userID].verificationCode + "&deviceID=dcb";
             XmlTextReader reader = new XmlTextReader(URLString);
@@ -120,6 +120,50 @@ namespace GiantBombPremiumBot
             }
             users[userID].lastCheck = DateTime.UtcNow;
 
+            List<DiscordGuild> guilds = new();
+            foreach (var shard in Program.Shards)
+            {
+                foreach (var shardGuild in shard.Discord.Guilds)
+                {
+                    if (guilds.Contains(shardGuild.Value))
+                        continue;
+                    else
+                        guilds.Add(shardGuild.Value);
+                }
+            }
+
+            foreach (DiscordGuild guild in guilds)
+            {
+                var roles = guild.Roles;
+                DiscordRole? premiumRole = null;
+                DiscordRole? premiumRoleColour = null;
+
+                foreach (var role in roles)
+                {
+                    if (role.Value.Name == "Premium")
+                        premiumRole = role.Value;
+                    else if (role.Value.Name == "Primo")
+                        premiumRoleColour = role.Value;
+                }
+                if (premiumRole == null)
+                {
+                    premiumRole = await guild.CreateRoleAsync("Premium");
+                }
+                if (premiumRoleColour == null)
+                {
+                    premiumRoleColour = await guild.CreateRoleAsync("Primo");
+                }
+                foreach (var user in Program.userManager.users)
+                {
+                    if (Program.userManager.IsUserRegistered(user.Key) && guild.Members.ContainsKey(user.Key))
+                    {
+                        var guildUser = guild.Members[user.Key];
+                        bool premiumStatus = await Program.userManager.IsUserPremium(user.Key);
+                    }
+                }
+            }
+
+
             return users[userID].premiumStatus;
         }
 
@@ -151,21 +195,21 @@ namespace GiantBombPremiumBot
             }
         }
 
-        public void UpdateAllUsers()
+        public async Task UpdateAllUsers()
         {
             foreach (var user in users)
             {
                 if (user.Value.nextCheck < DateTime.UtcNow)
-                    UpdateUser(user.Key);
+                    await UpdateUser(user.Key);
             }
             WriteUserInfo();
         }
 
-        public void ForceUpdateAllUsers()
+        public async Task ForceUpdateAllUsers()
         {
             foreach (var user in users)
             {
-                UpdateUser(user.Key);
+                await UpdateUser(user.Key);
             }
             WriteUserInfo();
         }
@@ -222,6 +266,7 @@ namespace GiantBombPremiumBot
             {
                 Byte[] data = File.ReadAllBytes(path);
                 string decrypted = Crypto.DecryptStringFromBytes_Aes(data, key, iv);
+
                 users = JsonConvert.DeserializeObject<Users>(decrypted).users;
             }
             foreach (var user in users)
@@ -316,7 +361,7 @@ namespace GiantBombPremiumBot
 
             // Declare the string used to hold
             // the decrypted text.
-            string plaintext = null;
+            string plaintext = "";
 
             // Create an Aes object
             // with the specified key and IV.
