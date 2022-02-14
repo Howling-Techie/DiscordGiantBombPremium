@@ -14,17 +14,14 @@ namespace GiantBombPremiumBot
     {
         public Dictionary<ulong, User> users = new Dictionary<ulong, User>();
 
-        public byte[] key = System.Text.Encoding.ASCII.GetBytes("***REMOVED***");
-        public byte[] iv = System.Text.Encoding.ASCII.GetBytes("***REMOVED***");
-
         public void ReadUserInfo()
         {
-            users = JUsers.ReadDocument(key, iv);
+            users = JUsers.ReadDocument();
         }
 
         public void WriteUserInfo()
         {
-            JUsers.UpdateDocument(users, key, iv);
+            JUsers.UpdateDocument(users);
         }
 
         public async Task<bool> IsUserPremium(ulong userID)
@@ -169,7 +166,7 @@ namespace GiantBombPremiumBot
 
         internal void AddUser(DiscordMember member, string regCode)
         {
-            if(users.ContainsKey(member.Id))
+            if (users.ContainsKey(member.Id))
             {
                 users[member.Id].verificationCode = regCode;
                 return;
@@ -257,8 +254,24 @@ namespace GiantBombPremiumBot
 
     public static class JUsers
     {
-        public static Dictionary<ulong, User> ReadDocument(byte[] key, byte[] iv)
+        public static Dictionary<ulong, User> ReadDocument()
         {
+            var cfg = new CryptoConfig();
+            var json = string.Empty;
+            if (!File.Exists("config.json"))
+            {
+                json = JsonConvert.SerializeObject(cfg);
+                File.WriteAllText("crypto.json", json, new UTF8Encoding(false));
+                Console.WriteLine("crypto config file was not found, a new one was generated. Fill it with proper values and rerun this program");
+                Console.ReadKey();
+
+                return null;
+            }
+
+            byte[] key = System.Text.Encoding.ASCII.GetBytes(cfg.Key);
+            byte[] iv = System.Text.Encoding.ASCII.GetBytes(cfg.IV);
+            json = File.ReadAllText("crypto.json", new UTF8Encoding(false));
+            cfg = JsonConvert.DeserializeObject<CryptoConfig>(json);
             Dictionary<ulong, User> result = new Dictionary<ulong, User>();
             List<User> users = new List<User>();
             string path = "users.txt";
@@ -291,8 +304,23 @@ namespace GiantBombPremiumBot
             }
             return result;
         }
-        public static void UpdateDocument(Dictionary<ulong, User> users, byte[] key, byte[] iv)
+        public static void UpdateDocument(Dictionary<ulong, User> users)
         {
+            var cfg = new CryptoConfig();
+            var json = string.Empty;
+            if (!File.Exists("config.json"))
+            {
+                json = JsonConvert.SerializeObject(cfg);
+                File.WriteAllText("crypto.json", json, new UTF8Encoding(false));
+                Console.WriteLine("crypto config file was not found, a new one was generated. Fill it with proper values and rerun this program");
+                Console.ReadKey();
+
+                return;
+            }
+
+            byte[] key = System.Text.Encoding.ASCII.GetBytes(cfg.Key);
+            byte[] iv = System.Text.Encoding.ASCII.GetBytes(cfg.IV);
+
             List<User> data = new List<User>();
             foreach (var user in users)
             {
