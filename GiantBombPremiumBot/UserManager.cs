@@ -258,7 +258,7 @@ namespace GiantBombPremiumBot
         {
             var cfg = new CryptoConfig();
             var json = string.Empty;
-            if (!File.Exists("config.json"))
+            if (!File.Exists("crypto.json"))
             {
                 json = JsonConvert.SerializeObject(cfg);
                 File.WriteAllText("crypto.json", json, new UTF8Encoding(false));
@@ -318,6 +318,8 @@ namespace GiantBombPremiumBot
 
                 return;
             }
+            json = File.ReadAllText("crypto.json", new UTF8Encoding(false));
+            cfg = JsonConvert.DeserializeObject<CryptoConfig>(json);
 
             byte[] key = System.Text.Encoding.ASCII.GetBytes(cfg.Key);
             byte[] iv = System.Text.Encoding.ASCII.GetBytes(cfg.IV);
