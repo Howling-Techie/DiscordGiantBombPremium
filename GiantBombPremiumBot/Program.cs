@@ -132,10 +132,12 @@ namespace GiantBombPremiumBot
         {
             if (userManager.IsUserRegistered(member.Id))
             {
+                //Get User premium status
                 bool premium = await userManager.UpdateUser(member.Id);
 
                 DiscordRole? premiumRole = null;
                 DiscordRole? premiumRoleColour = null;
+                //Search the server for the Premium and Primo roles
                 foreach (var role in member.Guild.Roles)
                 {
                     if (role.Value.Name == "Premium")
@@ -143,14 +145,18 @@ namespace GiantBombPremiumBot
                     else if (role.Value.Name == "Primo")
                         premiumRoleColour = role.Value;
                 }
+
+                //If roles not found, create them
                 if (premiumRole == null)
                 {
-                    premiumRole = await member.Guild.CreateRoleAsync("Premium");
+                    //premiumRole = await member.Guild.CreateRoleAsync("Premium");
                 }
                 if (premiumRoleColour == null)
                 {
-                    premiumRoleColour = await member.Guild.CreateRoleAsync("Primo");
+                    //premiumRoleColour = await member.Guild.CreateRoleAsync("Primo");
                 }
+
+                //If found, update role
                 if (premium)
                 {
                     await member.GrantRoleAsync(premiumRole);
@@ -159,7 +165,10 @@ namespace GiantBombPremiumBot
                 else if (member.Roles.Contains(premiumRole))
                 {
                     await member.RevokeRoleAsync(premiumRole);
-                    await member.RevokeRoleAsync(premiumRoleColour);
+                    if (member.Roles.Contains(premiumRoleColour))
+                    {
+                        await member.RevokeRoleAsync(premiumRoleColour);
+                    }
                 }
                 return premium;
             }
@@ -201,11 +210,11 @@ namespace GiantBombPremiumBot
                 }
                 if (premiumRole == null)
                 {
-                    premiumRole = await guild.CreateRoleAsync("Premium");
+                    //premiumRole = await guild.CreateRoleAsync("Premium");
                 }
                 if (premiumRoleColour == null)
                 {
-                    premiumRoleColour = await guild.CreateRoleAsync("Primo");
+                    //premiumRoleColour = await guild.CreateRoleAsync("Primo");
                 }
                 foreach (var user in userManager.users)
                 {

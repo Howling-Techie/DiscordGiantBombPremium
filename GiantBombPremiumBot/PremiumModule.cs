@@ -135,6 +135,24 @@ namespace GiantBombPremiumBot
         [SlashCommand("Unlink", "Remove the Giant Bomb account associated with this Discord account")]
         public async Task UnlinkCommand(InteractionContext ctx)
         {
+            DiscordRole? premiumRole = null;
+            DiscordRole? premiumRoleColour = null;
+            //Search the server for the Premium and Primo roles
+            foreach (var role in ctx.Member.Guild.Roles)
+            {
+                if (role.Value.Name == "Premium")
+                    premiumRole = role.Value;
+                else if (role.Value.Name == "Primo")
+                    premiumRoleColour = role.Value;
+            }
+            if (ctx.Member.Roles.Contains(premiumRole))
+            {
+                await ctx.Member.RevokeRoleAsync(premiumRole);
+            }
+            if (ctx.Member.Roles.Contains(premiumRoleColour))
+            {
+                await ctx.Member.RevokeRoleAsync(premiumRoleColour);
+            }
             Program.RemoveUser(ctx.Member);
             DiscordInteractionResponseBuilder responseBuilder = new();
             responseBuilder.Content = "You've been removed from the system.";

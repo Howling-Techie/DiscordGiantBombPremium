@@ -144,11 +144,11 @@ namespace GiantBombPremiumBot
                 }
                 if (premiumRole == null)
                 {
-                    premiumRole = await guild.CreateRoleAsync("Premium");
+                    //premiumRole = await guild.CreateRoleAsync("Premium");
                 }
                 if (premiumRoleColour == null)
                 {
-                    premiumRoleColour = await guild.CreateRoleAsync("Primo");
+                    //premiumRoleColour = await guild.CreateRoleAsync("Primo");
                 }
                 foreach (var user in Program.userManager.users)
                 {

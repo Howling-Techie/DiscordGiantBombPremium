@@ -44,7 +44,6 @@ namespace GiantBombPremiumBot
 
             var slash = Discord.UseSlashCommands();
             slash.RegisterCommands<PremiumModule>(106386929506873344);
-            slash.RegisterCommands<PremiumModule>(746772975621242970);
             slash.ContextMenuErrored += async (s, e) =>
             {
                 if (e.Exception is ContextMenuExecutionChecksFailedException cmex)
@@ -80,7 +79,7 @@ namespace GiantBombPremiumBot
             }
             if (e.Id == "verify")
             {
-                Program.UpdateUser((DiscordMember)e.Interaction.User);
+                await Program.UpdateUser((DiscordMember)e.Interaction.User);
                 bool premium = Program.IsUserPremium(e.Interaction.User);
                 if(premium)
                 {
@@ -96,6 +95,7 @@ namespace GiantBombPremiumBot
                     followup.WithContent("Weird, you don't have premium, did you do all of the above?");
                     await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
                 }
+                Program.userManager.WriteUserInfo();
             }
         }
 
