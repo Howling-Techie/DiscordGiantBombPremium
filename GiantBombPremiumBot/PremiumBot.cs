@@ -62,7 +62,7 @@ namespace GiantBombPremiumBot
             this.Discord.Ready += this.Discord_Ready;
             this.Discord.SocketErrored += this.Discord_SocketError;
 
-
+            
             // build a dependency collection for commandsnext
             var depco = new ServiceCollection();
 
@@ -95,7 +95,7 @@ namespace GiantBombPremiumBot
                     followup.WithContent("Weird, you don't have premium, did you do all of the above?");
                     await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
                 }
-                Program.userManager.WriteUserInfo();
+                //Program.userManager.WriteUserInfo();
             }
         }
 

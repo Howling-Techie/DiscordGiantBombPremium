@@ -43,15 +43,6 @@ namespace GiantBombPremiumBot
         public static void Main(string[] args)
             => MainAsync(args).ConfigureAwait(false).GetAwaiter().GetResult();
 
-        internal static bool IsUserRegistered(ulong userID)
-        {
-            return userManager.IsUserRegistered(userID);
-        }
-
-        internal static string GetRegCode(ulong userID)
-        {
-            return userManager.GetRegCode(userID);
-        }
 
         public static async Task MainAsync(string[] args)
         {
@@ -75,10 +66,9 @@ namespace GiantBombPremiumBot
             timer = new Timer(
     (e) => CheckAllUsers(),
     null,
-    TimeSpan.FromSeconds(20),
+    TimeSpan.FromSeconds(10),
     TimeSpan.FromHours(1));
 
-            userManager.ReadUserInfo();
 
             var tskl = new List<Task>();
             for (var i = 0; i < cfg.ShardCount; i++)
@@ -99,20 +89,6 @@ namespace GiantBombPremiumBot
 
         }
 
-        internal static void AddUser(InteractionContext ctx, string regCode)
-        {
-            userManager.AddUser(ctx.Member, regCode);
-        }
-
-        internal static void RemoveUser(DiscordUser member)
-        {
-            userManager.RemoveUser(member.Id);
-        }
-
-        internal static async Task<string> GetStatus(InteractionContext ctx)
-        {
-            return await userManager.GetStatus(ctx.User.Id);
-        }
 
         private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
         {
@@ -126,53 +102,12 @@ namespace GiantBombPremiumBot
 
         internal static bool IsUserPremium(DiscordUser user)
         {
-            return userManager.IsUserPremium(user.Id).Result;
+            return userManager.GetPremiumStatus(user.Id).Result;
         }
         public static async Task<bool> UpdateUser(DiscordMember member)
         {
-            if (userManager.IsUserRegistered(member.Id))
-            {
-                //Get User premium status
-                bool premium = await userManager.UpdateUser(member.Id);
-
-                DiscordRole? premiumRole = null;
-                DiscordRole? premiumRoleColour = null;
-                //Search the server for the Premium and Primo roles
-                foreach (var role in member.Guild.Roles)
-                {
-                    if (role.Value.Name == "Premium")
-                        premiumRole = role.Value;
-                    else if (role.Value.Name == "Primo")
-                        premiumRoleColour = role.Value;
-                }
-
-                //If roles not found, create them
-                if (premiumRole == null)
-                {
-                    //premiumRole = await member.Guild.CreateRoleAsync("Premium");
-                }
-                if (premiumRoleColour == null)
-                {
-                    //premiumRoleColour = await member.Guild.CreateRoleAsync("Primo");
-                }
-
-                //If found, update role
-                if (premium)
-                {
-                    await member.GrantRoleAsync(premiumRole);
-                    //await member.GrantRoleAsync(premiumRoleColour);
-                }
-                else if (member.Roles.Contains(premiumRole))
-                {
-                    await member.RevokeRoleAsync(premiumRole);
-                    if (member.Roles.Contains(premiumRoleColour))
-                    {
-                        await member.RevokeRoleAsync(premiumRoleColour);
-                    }
-                }
-                return premium;
-            }
-            return false;
+            //Get User premium status
+            return await userManager.UpdateUser(member.Id);
         }
 
 
@@ -183,47 +118,8 @@ namespace GiantBombPremiumBot
                 return;
             }
 
-            List<DiscordGuild> guilds = new();
-            foreach (var shard in Shards)
-            {
-                foreach (var shardGuild in shard.Discord.Guilds)
-                {
-                    if (guilds.Contains(shardGuild.Value))
-                        continue;
-                    else
-                        guilds.Add(shardGuild.Value);
-                }
-            }
+            await userManager.UpdateAllUsers();
 
-            foreach (DiscordGuild guild in guilds)
-            {
-                var roles = guild.Roles;
-                DiscordRole? premiumRole = null;
-                DiscordRole? premiumRoleColour = null;
-
-                foreach (var role in roles)
-                {
-                    if (role.Value.Name == "Premium")
-                        premiumRole = role.Value;
-                    else if (role.Value.Name == "Primo")
-                        premiumRoleColour = role.Value;
-                }
-                if (premiumRole == null)
-                {
-                    //premiumRole = await guild.CreateRoleAsync("Premium");
-                }
-                if (premiumRoleColour == null)
-                {
-                    //premiumRoleColour = await guild.CreateRoleAsync("Primo");
-                }
-                foreach (var user in userManager.users)
-                {
-                    if (userManager.IsUserRegistered(user.Key) && guild.Members.ContainsKey(user.Key))
-                    {
-                        await userManager.IsUserPremium(user.Key);
-                    }
-                }
-            }
             nextRun = userManager.GetNextCheckTime();
         }
     }
