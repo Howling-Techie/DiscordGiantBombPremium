@@ -62,7 +62,7 @@ namespace GiantBombPremiumBot
             json = File.ReadAllText("config.json", new UTF8Encoding(false));
             cfg = JsonConvert.DeserializeObject<BotConfig>(json);
 
-
+            //Once an hour do the check in
             timer = new Timer(
     (e) => CheckAllUsers(),
     null,
@@ -99,17 +99,6 @@ namespace GiantBombPremiumBot
 
             CancelTokenSource.Cancel();
         }
-
-        internal static bool IsUserPremium(DiscordUser user)
-        {
-            return userManager.GetPremiumStatus(user.Id).Result;
-        }
-        public static async Task<bool> UpdateUser(DiscordMember member)
-        {
-            //Get User premium status
-            return await userManager.UpdateUser(member.Id);
-        }
-
 
         public static async void CheckAllUsers()
         {

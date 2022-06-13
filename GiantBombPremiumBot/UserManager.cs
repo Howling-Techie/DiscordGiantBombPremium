@@ -244,55 +244,10 @@ namespace GiantBombPremiumBot
 
         private static class Database
         {
+            //Initiates the crypto data from the config json file
             static CryptoConfig cfg = new CryptoConfig();
 
-            public static Dictionary<ulong, User> ReadDocument()
-            {
-                var json = string.Empty;
-                if (!File.Exists("crypto.json"))
-                {
-                    json = JsonConvert.SerializeObject(cfg);
-                    File.WriteAllText("crypto.json", json, new UTF8Encoding(false));
-                    Console.WriteLine("crypto config file was not found, a new one was generated. Fill it with proper values and rerun this program");
-                    Console.ReadKey();
-
-                    return null;
-                }
-                json = File.ReadAllText("crypto.json", new UTF8Encoding(false));
-                cfg = JsonConvert.DeserializeObject<CryptoConfig>(json);
-
-                byte[] key = cfg.Key;
-                byte[] iv = cfg.IV;
-
-                Dictionary<ulong, User> result = new Dictionary<ulong, User>();
-                List<User> users = new List<User>();
-                string path = "users.txt";
-                if (File.Exists(path))
-                {
-                    Byte[] data = File.ReadAllBytes(path);
-                    string decrypted = Crypto.DecryptStringFromBytes_Aes(data, key, iv);
-
-                    users = JsonConvert.DeserializeObject<Users>(decrypted).users;
-                }
-                foreach (var user in users)
-                {
-                    if (!result.ContainsKey(user.id))
-                    {
-                        result.Add(user.id, user);
-
-                    }
-                    if (user.nextCheck < new DateTime(2000, 1, 1))
-                    {
-                        result[user.id].nextCheck = DateTime.Now;
-                    }
-                    if (user.nextCheck < Program.nextRun)
-                    {
-                        Program.nextRun = user.nextCheck;
-                    }
-                }
-                return result;
-            }
-
+            //Gets a user from the database
             public static User? GetUser(ulong userId)
             {
                 byte[] encrID = Crypto.EncryptStringToBytes_Aes(userId.ToString(), cfg.Key, cfg.IV);
@@ -353,6 +308,7 @@ namespace GiantBombPremiumBot
                 return user;
             }
 
+            //Updates a user's info in the database (or creates an entry if they don't)
             public static void UpdateUser(User user)
             {
                 byte[] encrID = Crypto.EncryptStringToBytes_Aes(user.id.ToString(), cfg.Key, cfg.IV);
@@ -375,6 +331,7 @@ namespace GiantBombPremiumBot
                         exists = true;
                     connection.Close();
                 }
+                //If they don't exist, insert the data, otherwise just update
                 if (!exists)
                     using (SqliteConnection connection = new SqliteConnection(connectionString))
                     {
@@ -409,6 +366,7 @@ namespace GiantBombPremiumBot
                 }
             }
 
+            //Updates a user's entry (assuming the exist in the database). Mainly used for updating a user after getting a new expiration date
             public static void UpdateUserStatus(long userID, ulong nextCheck, bool status)
             {
                 byte[] encrID = Crypto.EncryptStringToBytes_Aes(userID.ToString(), cfg.Key, cfg.IV);
@@ -446,50 +404,7 @@ namespace GiantBombPremiumBot
                     }
             }
 
-            public static void UpdateDocument(Dictionary<ulong, User> users)
-            {
-
-                List<User> data = new List<User>();
-                foreach (var user in users)
-                {
-                    byte[] encrID = Crypto.EncryptStringToBytes_Aes(user.Value.id.ToString(), cfg.Key, cfg.IV);
-                    byte[] encrCode = Crypto.EncryptStringToBytes_Aes(user.Value.verificationCode.ToString(), cfg.Key, cfg.IV);
-
-                    string connectionString = "Data Source=GBPremium.db;";
-
-                    //Check if user exists
-                    bool exists = false;
-                    using (SqliteConnection connection = new SqliteConnection(connectionString))
-                    {
-                        connection.Open();
-
-                        var command = connection.CreateCommand();
-                        string comText = "SELECT EXISTS(SELECT 1 FROM Users WHERE UserID = @id)";
-                        command.CommandText = comText;
-                        command.Parameters.AddWithValue("@id", encrID);
-                        int result = Convert.ToInt32(command.ExecuteScalar());
-                        if (result == 1)
-                            exists = true;
-                        connection.Close();
-                    }
-                    if (!exists)
-                        using (SqliteConnection connection = new SqliteConnection(connectionString))
-                        {
-                            connection.Open();
-
-                            var command = connection.CreateCommand();
-                            string comText = "INSERT INTO Users(UserID, PremiumCode, Expiration, Status) VALUES (@id, @code, @expiration, @status)";
-                            command.CommandText = comText;
-                            command.Parameters.AddWithValue("@id", encrID);
-                            command.Parameters.AddWithValue("@code", encrCode);
-                            command.Parameters.AddWithValue("@expiration", ((DateTimeOffset)user.Value.nextCheck).ToUnixTimeSeconds().ToString());
-                            command.Parameters.AddWithValue("@status", user.Value.premiumStatus.ToString());
-                            command.ExecuteNonQuery();
-                            connection.Close();
-                        }
-                }
-            }
-
+            //Remove a user from the database
             public static void RemoveUser(ulong userID)
             {
                 byte[] encrID = Crypto.EncryptStringToBytes_Aes(userID.ToString(), cfg.Key, cfg.IV);

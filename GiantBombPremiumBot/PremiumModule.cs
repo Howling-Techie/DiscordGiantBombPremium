@@ -106,10 +106,10 @@ namespace GiantBombPremiumBot
 
         }
 
-        [SlashCommand("Recheck", "Link your Discord account with Giant Bomb")]
+        [SlashCommand("Recheck", "If you've resubbed to premium, run this command.")]
         public async Task RecheckCommand(InteractionContext ctx)
         {
-            await Program.UpdateUser(ctx.Member);
+            await Program.userManager.UpdateUser(ctx.Member.Id);
             bool premium = await Program.UpdateUser(ctx.Member);
             DiscordInteractionResponseBuilder responseBuilder = new();
             responseBuilder.IsEphemeral = true;
@@ -143,6 +143,7 @@ namespace GiantBombPremiumBot
                 else if (role.Value.Name == "Primo")
                     premiumRoleColour = role.Value;
             }
+            //Remove user's premium roles
             if (ctx.Member.Roles.Contains(premiumRole))
             {
                 await ctx.Member.RevokeRoleAsync(premiumRole);
@@ -151,6 +152,8 @@ namespace GiantBombPremiumBot
             {
                 await ctx.Member.RevokeRoleAsync(premiumRoleColour);
             }
+
+            //Remove the user from the database
             Program.userManager.RemoveUser(ctx.Member.Id);
             DiscordInteractionResponseBuilder responseBuilder = new();
             responseBuilder.Content = "You've been removed from the system.";
@@ -223,7 +226,7 @@ namespace GiantBombPremiumBot
 
         [SlashCommand("CheckAll", "Go through all users on the database, update their roles")]
         [RequireUserRole("Moderators")]
-        public static async Task CheckAllCommand(InteractionContext ctx, [Option("Force", "Check user regardless of date due to expire")] bool force)
+        public static async Task CheckAllCommand(InteractionContext ctx, [Option("Force", "Ignore expiration date? (Takes much longer)")] bool force)
         {
             string connectionString = "Data Source=GBPremium.db;";
 

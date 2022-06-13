@@ -75,12 +75,13 @@ namespace GiantBombPremiumBot
         {
             if (e.Id == "null")
             {
+                //A general use "null" response to do nothing
                 return;
             }
             if (e.Id == "verify")
             {
-                await Program.UpdateUser((DiscordMember)e.Interaction.User);
-                bool premium = Program.IsUserPremium(e.Interaction.User);
+                //Runs when the user hits the "verify" button. Check that a user has premium, with GetPremiumStatus running the check again if needed.
+                bool premium = await Program.userManager.UpdateUser(e.Interaction.User.Id);
                 if(premium)
                 {
                     DiscordInteractionResponseBuilder followup = new DiscordInteractionResponseBuilder();
@@ -95,7 +96,6 @@ namespace GiantBombPremiumBot
                     followup.WithContent("Weird, you don't have premium, did you do all of the above?");
                     await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
                 }
-                //Program.userManager.WriteUserInfo();
             }
         }
 
