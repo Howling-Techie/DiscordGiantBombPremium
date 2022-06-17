@@ -89,17 +89,23 @@ namespace GiantBombPremiumBot
             responseBuilder.Content = "Hi! To complete the process of linking your Giant Bomb account to your Discord account, just need to do a few quick things!" +
                 "\n1. Visit the link below and enter the code **" + regCode + "**." +
                 "\n2. Hit the big \"Hook me Up!\" button." +
-                "\n3. Select \"Verify\" below, and we'll do the rest.";
+                "\n3. Select \"Verify\" below, and we'll do the rest." +
+                "\n  If there's an issue verifying, hit \"Reset\" and we'll generate a new code.";
             List<DiscordComponent> row0 = new List<DiscordComponent>
             {
                 new DiscordLinkButtonComponent("https://www.giantbomb.com/app/premiumdiscordbot/activate", "giantbomb.com", false, new DiscordComponentEmoji(588743258130219010))
             };
             List<DiscordComponent> row1 = new List<DiscordComponent>
             {
-                new DiscordButtonComponent(ButtonStyle.Primary, "verify", "Verify", false, new DiscordComponentEmoji(862738787918020609))
+                new DiscordButtonComponent(ButtonStyle.Primary, "verify", "Verify", false, new DiscordComponentEmoji(859388130411282442))
+            };
+            List<DiscordComponent> row2 = new List<DiscordComponent>
+            {
+                new DiscordButtonComponent(ButtonStyle.Danger, "reset", "Reset", false, new DiscordComponentEmoji(868122243845206087))
             };
             responseBuilder.AddComponents(row0);
             responseBuilder.AddComponents(row1);
+            responseBuilder.AddComponents(row2);
             responseBuilder.AsEphemeral(true);
             await ctx.CreateResponseAsync(responseBuilder);
             return;
@@ -125,6 +131,16 @@ namespace GiantBombPremiumBot
             string status = await Program.userManager.GetStatus(ctx.User.Id);
             DiscordInteractionResponseBuilder responseBuilder = new();
             responseBuilder.Content = status;
+            responseBuilder.AsEphemeral(true);
+            await ctx.CreateResponseAsync(responseBuilder);
+            return;
+        }
+
+        [SlashCommand("Info", "About the bot")]
+        public async Task InfoCommand(InteractionContext ctx)
+        {
+            DiscordInteractionResponseBuilder responseBuilder = new();
+            responseBuilder.Content = "Bot programmed by Howling Techie, icons by @icons_discord on Twitter";
             responseBuilder.AsEphemeral(true);
             await ctx.CreateResponseAsync(responseBuilder);
             return;

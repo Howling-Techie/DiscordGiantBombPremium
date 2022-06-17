@@ -4,12 +4,7 @@ using DSharpPlus.EventArgs;
 using DSharpPlus.SlashCommands;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+using System.Xml;
 
 namespace GiantBombPremiumBot
 {
@@ -95,6 +90,80 @@ namespace GiantBombPremiumBot
                     followup.AsEphemeral(true);
                     followup.WithContent("Weird, you don't have premium, did you do all of the above?");
                     await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
+                }
+            }
+            if(e.Id == "reset")
+            {
+                bool premium = await Program.userManager.UpdateUser(e.Interaction.User.Id);
+                if (premium)
+                {
+                    DiscordInteractionResponseBuilder followup = new DiscordInteractionResponseBuilder();
+                    followup.AsEphemeral(true);
+                    followup.WithContent("You've already got premium! <:Premium:852190261144453160> Congratulations!");
+                    await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
+                }
+                else
+                {
+                    Program.userManager.RemoveUser(e.Interaction.User.Id);
+
+                    DiscordInteractionResponseBuilder followup = new DiscordInteractionResponseBuilder();                    
+                    followup.AsEphemeral(true);
+                    
+                    string regCode = Program.userManager.GetUserVerifCode(e.Interaction.User.Id);
+                    if (regCode == "" || regCode == null)
+                    {
+                        string URLString = "https://www.giantbomb.com/app/premiumdiscordbot/get-code?deviceID=dcb";
+                        XmlTextReader reader = new XmlTextReader(URLString);
+                        while (reader.Read())
+                        {
+                            switch (reader.NodeType)
+                            {
+                                case XmlNodeType.Element:
+                                    if (reader.Name == "regCode")
+                                    {
+                                        regCode = reader.ReadString();
+                                    }
+                                    break;
+                                case XmlNodeType.Attribute:
+                                    break;
+                                case XmlNodeType.Text:
+                                    break;
+                                case XmlNodeType.EndElement:
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        if (regCode == "" || regCode == null)
+                        {
+                            followup.WithContent("Oops, something went wrong :(");
+                            await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
+                            return;
+                        }
+                    }
+                    Program.userManager.AddUser(e.Interaction.User.Id, regCode);
+                    followup.Content = "Okay, we've generated a new code! If you've still got any issues let us know in <#958417709446606869> and we'll see what we can do." +
+                        "\n1. Visit the link below and enter the code **" + regCode + "**." +
+                        "\n2. Hit the big \"Hook me Up!\" button." +
+                        "\n3. Select \"Verify\" below, and we'll do the rest." +
+                        "\n  If there's an issue verifying, hit \"Reset\" and we'll generate a new code.";
+                    List<DiscordComponent> row0 = new List<DiscordComponent>
+            {
+                new DiscordLinkButtonComponent("https://www.giantbomb.com/app/premiumdiscordbot/activate", "giantbomb.com", false, new DiscordComponentEmoji(588743258130219010))
+            };
+                    List<DiscordComponent> row1 = new List<DiscordComponent>
+            {
+                new DiscordButtonComponent(ButtonStyle.Primary, "verify", "Verify", false, new DiscordComponentEmoji(859388130411282442))
+            };
+                    List<DiscordComponent> row2 = new List<DiscordComponent>
+            {
+                new DiscordButtonComponent(ButtonStyle.Danger, "reset", "Reset", false, new DiscordComponentEmoji(868122243845206087))
+            };
+                    followup.AddComponents(row0);
+                    followup.AddComponents(row1);
+                    followup.AddComponents(row2);
+                    await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
+                    return;
                 }
             }
         }
