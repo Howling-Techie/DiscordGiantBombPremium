@@ -2,12 +2,6 @@
 using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
 using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 
 namespace GiantBombPremiumBot
@@ -20,7 +14,9 @@ namespace GiantBombPremiumBot
             this.RoleName = roleName;
         }
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public override async Task<bool> ExecuteChecksAsync(ContextMenuContext ctx)
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
             if (ctx.Guild.GetMemberAsync(ctx.User.Id).Result.Roles.Any(x => x.Name == RoleName))
                 return true;
@@ -29,7 +25,8 @@ namespace GiantBombPremiumBot
         }
 
     }
-    class BlankModule : ApplicationCommandModule
+
+    internal class BlankModule : ApplicationCommandModule
     {
 
     }
@@ -38,68 +35,89 @@ namespace GiantBombPremiumBot
     public class PremiumModule : ApplicationCommandModule
     {
         [SlashCommand("Connect", "Link your Discord account with Giant Bomb")]
-        public async Task ConnectCommand(InteractionContext ctx)
+        public static async Task ConnectCommand(InteractionContext ctx)
         {
-            await Program.userManager.UpdateUser(ctx.Member.Id);
-            bool premium = await Program.userManager.GetPremiumStatus(ctx.User.Id);
+            await UserManager.UpdateUser(ctx.Member.Id);
+            bool premium = await UserManager.GetPremiumStatus(ctx.User.Id);
             if (premium)
             {
-                DiscordInteractionResponseBuilder AlreadyPremiumResponse = new();
-                AlreadyPremiumResponse.Content = "You're already premium!";
+                DiscordInteractionResponseBuilder AlreadyPremiumResponse = new()
+                {
+                    Content = "You're already premium!"
+                };
                 AlreadyPremiumResponse.AsEphemeral(true);
                 await ctx.CreateResponseAsync(AlreadyPremiumResponse);
                 return;
             }
-            string regCode = Program.userManager.GetUserVerifCode(ctx.User.Id);
-            if (regCode == "" || regCode == null)
+            string regCode = UserManager.GetUserVerifCode(ctx.User.Id);
+            if (regCode is "" or null)
             {
                 string URLString = "https://www.giantbomb.com/app/premiumdiscordbot/get-code?deviceID=dcb";
-                XmlTextReader reader = new XmlTextReader(URLString);
-                while (reader.Read())
+                XmlTextReader? reader = null;
+                int attempts = 0;
+                bool success = false;
+                while (!success && attempts < 10)
                 {
-                    switch (reader.NodeType)
+                    try
                     {
-                        case XmlNodeType.Element:
-                            if (reader.Name == "regCode")
-                            {
-                                regCode = reader.ReadString();
-                            }
-                            break;
-                        case XmlNodeType.Attribute:
-                            break;
-                        case XmlNodeType.Text:
-                            break;
-                        case XmlNodeType.EndElement:
-                            break;
-                        default:
-                            break;
+                        reader = new XmlTextReader(URLString);
+                        success = true;
+                    }
+                    catch
+                    {
+                        attempts++;
                     }
                 }
-                if (regCode == "" || regCode == null)
+                if (reader != null)
+                    while (reader.Read())
+                    {
+                        switch (reader.NodeType)
+                        {
+                            case XmlNodeType.Element:
+                                if (reader.Name == "regCode")
+                                {
+                                    regCode = reader.ReadString();
+                                }
+                                break;
+                            case XmlNodeType.Attribute:
+                                break;
+                            case XmlNodeType.Text:
+                                break;
+                            case XmlNodeType.EndElement:
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                if (regCode is "" or null)
                 {
-                    DiscordInteractionResponseBuilder ErrorResponse = new();
-                    ErrorResponse.Content = "Oops, something went wrong :(";
+                    DiscordInteractionResponseBuilder ErrorResponse = new()
+                    {
+                        Content = "Oops, something went wrong :("
+                    };
                     ErrorResponse.AsEphemeral(true);
                     await ctx.CreateResponseAsync(ErrorResponse);
                     return;
                 }
             }
-            Program.userManager.AddUser(ctx.User.Id, regCode);
-            DiscordInteractionResponseBuilder responseBuilder = new();
-            responseBuilder.Content = "Hi! To complete the process of linking your Giant Bomb account to your Discord account, just need to do a few quick things!" +
+            UserManager.AddUser(ctx.User.Id, regCode);
+            DiscordInteractionResponseBuilder responseBuilder = new()
+            {
+                Content = "Hi! To complete the process of linking your Giant Bomb account to your Discord account, just need to do a few quick things!" +
                 "\n1. Visit the link below and enter the code **" + regCode + "**." +
                 "\n2. Hit the big \"Hook me Up!\" button." +
                 "\n3. Select \"Verify\" below, and we'll do the rest." +
-                "\n  If there's an issue verifying, hit \"Reset\" and we'll generate a new code.";
-            List<DiscordComponent> row0 = new List<DiscordComponent>
+                "\n  If there's an issue verifying, hit \"Reset\" and we'll generate a new code."
+            };
+            List<DiscordComponent> row0 = new()
             {
                 new DiscordLinkButtonComponent("https://www.giantbomb.com/app/premiumdiscordbot/activate", "giantbomb.com", false, new DiscordComponentEmoji(588743258130219010))
             };
-            List<DiscordComponent> row1 = new List<DiscordComponent>
+            List<DiscordComponent> row1 = new()
             {
                 new DiscordButtonComponent(ButtonStyle.Primary, "verify", "Verify", false, new DiscordComponentEmoji(859388130411282442))
             };
-            List<DiscordComponent> row2 = new List<DiscordComponent>
+            List<DiscordComponent> row2 = new()
             {
                 new DiscordButtonComponent(ButtonStyle.Danger, "reset", "Reset", false, new DiscordComponentEmoji(868122243845206087))
             };
@@ -113,46 +131,52 @@ namespace GiantBombPremiumBot
         }
 
         [SlashCommand("Recheck", "If you've resubbed to premium, run this command.")]
-        public async Task RecheckCommand(InteractionContext ctx)
+        public static async Task RecheckCommand(InteractionContext ctx)
         {
-            await Program.userManager.UpdateUser(ctx.Member.Id);
-            bool premium = await Program.userManager.UpdateUser(ctx.Member.Id);
-            DiscordInteractionResponseBuilder responseBuilder = new();
-            responseBuilder.IsEphemeral = true;
-            responseBuilder.Content = premium ? "After rechecking, you are premium" : "After rechecking, you are not premium";
+            await UserManager.UpdateUser(ctx.Member.Id);
+            bool premium = await UserManager.UpdateUser(ctx.Member.Id);
+            DiscordInteractionResponseBuilder responseBuilder = new()
+            {
+                IsEphemeral = true,
+                Content = premium ? "After rechecking, you are premium" : "After rechecking, you are not premium"
+            };
             await ctx.CreateResponseAsync(responseBuilder);
             return;
         }
 
         [SlashCommand("Status", "Get your link status")]
-        public async Task StatusCommand(InteractionContext ctx)
+        public static async Task StatusCommand(InteractionContext ctx)
         {
             Console.WriteLine("Fetching status for " + ctx.Member.DisplayName);
-            string status = await Program.userManager.GetStatus(ctx.User.Id);
-            DiscordInteractionResponseBuilder responseBuilder = new();
-            responseBuilder.Content = status;
+            string status = await Program.UserManager.GetStatus(ctx.User.Id);
+            DiscordInteractionResponseBuilder responseBuilder = new()
+            {
+                Content = status
+            };
             responseBuilder.AsEphemeral(true);
             await ctx.CreateResponseAsync(responseBuilder);
             return;
         }
 
         [SlashCommand("Info", "About the bot")]
-        public async Task InfoCommand(InteractionContext ctx)
+        public static async Task InfoCommand(InteractionContext ctx)
         {
-            DiscordInteractionResponseBuilder responseBuilder = new();
-            responseBuilder.Content = "Bot programmed by Howling Techie, icons by @icons_discord on Twitter";
+            DiscordInteractionResponseBuilder responseBuilder = new()
+            {
+                Content = "Bot programmed by Howling Techie, icons by @icons_discord on Twitter"
+            };
             responseBuilder.AsEphemeral(true);
             await ctx.CreateResponseAsync(responseBuilder);
             return;
         }
 
         [SlashCommand("Unlink", "Remove the Giant Bomb account associated with this Discord account")]
-        public async Task UnlinkCommand(InteractionContext ctx)
+        public static async Task UnlinkCommand(InteractionContext ctx)
         {
             DiscordRole? premiumRole = null;
             DiscordRole? premiumRoleColour = null;
             //Search the server for the Premium and Primo roles
-            foreach (var role in ctx.Member.Guild.Roles)
+            foreach (KeyValuePair<ulong, DiscordRole> role in ctx.Member.Guild.Roles)
             {
                 if (role.Value.Name == "Premium")
                     premiumRole = role.Value;
@@ -170,9 +194,11 @@ namespace GiantBombPremiumBot
             }
 
             //Remove the user from the database
-            Program.userManager.RemoveUser(ctx.Member.Id);
-            DiscordInteractionResponseBuilder responseBuilder = new();
-            responseBuilder.Content = "You've been removed from the system.";
+            UserManager.RemoveUser(ctx.Member.Id);
+            DiscordInteractionResponseBuilder responseBuilder = new()
+            {
+                Content = "You've been removed from the system."
+            };
             responseBuilder.AsEphemeral(true);
             await ctx.CreateResponseAsync(responseBuilder);
             return;
@@ -180,11 +206,13 @@ namespace GiantBombPremiumBot
 
         [SlashCommand("Remove", "Forcably unlink a user from their Giant Bomb account; useful for debugging")]
         [RequireUserRole("Moderators")]
-        public async Task RemoveCommand(InteractionContext ctx, [Option("User", "User to remove")] DiscordUser user)
+        public static async Task RemoveCommand(InteractionContext ctx, [Option("User", "User to remove")] DiscordUser user)
         {
-            Program.userManager.RemoveUser(user.Id);
-            DiscordInteractionResponseBuilder responseBuilder = new();
-            responseBuilder.Content = user.Username + " has been removed from the system.";
+            UserManager.RemoveUser(user.Id);
+            DiscordInteractionResponseBuilder responseBuilder = new()
+            {
+                Content = user.Username + " has been removed from the system."
+            };
             responseBuilder.AsEphemeral(true);
             await ctx.CreateResponseAsync(responseBuilder);
             return;
@@ -194,20 +222,22 @@ namespace GiantBombPremiumBot
         [RequireUserRole("Moderators")]
         public static async Task CleanUpCommand(InteractionContext ctx)
         {
-            var server = ctx.Guild;
-            var roles = server.Roles;
+            DiscordGuild? server = ctx.Guild;
+            IReadOnlyDictionary<ulong, DiscordRole>? roles = server.Roles;
             DiscordRole? premiumRole = null;
             DiscordRole? premiumRoleColour = null;
             int revoked = 0;
             int fine = 0;
-            DiscordInteractionResponseBuilder initResponseBuilder = new();
-            initResponseBuilder.Content = "Checking users that may need the premium role removed. This can take a few minutes.";
+            DiscordInteractionResponseBuilder initResponseBuilder = new()
+            {
+                Content = "Checking users that may need the premium role removed. This can take a few minutes."
+            };
             initResponseBuilder.AsEphemeral(true);
             await ctx.CreateResponseAsync(initResponseBuilder);
 
-            var members = await server.GetAllMembersAsync();
+            IReadOnlyCollection<DiscordMember>? members = await server.GetAllMembersAsync();
 
-            foreach (var role in roles)
+            foreach (KeyValuePair<ulong, DiscordRole> role in roles)
             {
                 if (role.Value.Name == "Premium")
                     premiumRole = role.Value;
@@ -215,12 +245,12 @@ namespace GiantBombPremiumBot
                     premiumRoleColour = role.Value;
             }
 
-            foreach (var member in members)
+            foreach (DiscordMember? member in members)
             {
                 if (member.Roles.Contains(premiumRole))
                 {
                     //If they have the premium role, check if they should, and if they don't, revoke.
-                    bool status = await Program.userManager.GetPremiumStatus(member.Id);
+                    bool status = await UserManager.GetPremiumStatus(member.Id);
                     if (!status)
                     {
                         revoked++;
@@ -233,8 +263,10 @@ namespace GiantBombPremiumBot
 
                 }
             }
-            DiscordFollowupMessageBuilder responseBuilder = new();
-            responseBuilder.Content = "Revoked premium for " + revoked + " users.";
+            DiscordFollowupMessageBuilder responseBuilder = new()
+            {
+                Content = "Revoked premium for " + revoked + " users."
+            };
             responseBuilder.AsEphemeral(true);
             await ctx.FollowUpAsync(responseBuilder);
             return;
@@ -249,37 +281,39 @@ namespace GiantBombPremiumBot
             int rowCount = 0;
             int usersChecked = 0;
 
-            using (SqliteConnection connection = new SqliteConnection(connectionString))
+            using (SqliteConnection connection = new(connectionString))
             {
                 connection.Open();
 
-                var command = connection.CreateCommand();
+                SqliteCommand? command = connection.CreateCommand();
                 string comText = "SELECT COUNT(*) FROM Users";
                 command.CommandText = comText;
                 rowCount = Convert.ToInt32(command.ExecuteScalar());
 
                 connection.Close();
             }
-            DiscordInteractionResponseBuilder responseBuilder = new();
-            responseBuilder.Content = "Reprocessing users in the database...";
+            DiscordInteractionResponseBuilder responseBuilder = new()
+            {
+                Content = "Reprocessing users in the database..."
+            };
             responseBuilder.AsEphemeral(false);
             await ctx.CreateResponseAsync(responseBuilder);
 
-            List<ulong> userList = new List<ulong>();
+            List<ulong> userList = new();
 
-            using (SqliteConnection connection = new SqliteConnection(connectionString))
+            using (SqliteConnection connection = new(connectionString))
             {
                 connection.Open();
-                var command = connection.CreateCommand();
+                SqliteCommand? command = connection.CreateCommand();
                 string comText = "SELECT UserID FROM Users";
                 command.CommandText = comText;
 
-                var cfg = new CryptoConfig();
+                CryptoConfig? cfg = new();
 
                 byte[] key = cfg.Key;
                 byte[] iv = cfg.IV;
 
-                using (var reader = command.ExecuteReader())
+                using (SqliteDataReader? reader = command.ExecuteReader())
                 {
                     while (reader.Read())
                     {
@@ -295,18 +329,20 @@ namespace GiantBombPremiumBot
                 connection.Close();
             }
 
-            DiscordWebhookBuilder webhookBuilder = new DiscordWebhookBuilder();
-            webhookBuilder.Content = "Reprocessing users in the database...\nChecked " + usersChecked + " of " + rowCount + ".";
+            DiscordWebhookBuilder webhookBuilder = new()
+            {
+                Content = "Reprocessing users in the database...\nChecked " + usersChecked + " of " + rowCount + "."
+            };
             await ctx.EditResponseAsync(webhookBuilder);
 
             Task.Delay(1000).Wait();
 
-            foreach (var userID in userList)
+            foreach (ulong userID in userList)
             {
                 if (force)
-                    await Program.userManager.UpdateUser(userID);
+                    await UserManager.UpdateUser(userID);
                 else
-                    await Program.userManager.GetPremiumStatus(userID);
+                    await UserManager.GetPremiumStatus(userID);
                 usersChecked++;
                 Task.Delay(50).Wait();
                 webhookBuilder.Content = "Reprocessing users in the database...\nChecked " + usersChecked + " of " + rowCount + ".";

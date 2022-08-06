@@ -10,7 +10,7 @@
   <ItemGroup>
     <PackageReference Include="DSharpPlus" Version="4.3.0-nightly-01141" />
     <PackageReference Include="DSharpPlus.SlashCommands" Version="4.3.0-nightly-01141" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.0-preview.4.22229.2" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.0-preview.6.22329.4" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,7 +21,7 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
     <None Update="GBPremium.db">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="GBPremiumDB.db">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

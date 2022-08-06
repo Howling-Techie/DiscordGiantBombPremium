@@ -13,15 +13,8 @@
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
 
-using System;
-using System.Collections.Generic;
 using Newtonsoft.Json;
-using System.Security.Cryptography;
-using DSharpPlus;
-using DSharpPlus.Entities;
-using System.Xml;
 using System.Text;
-using DSharpPlus.SlashCommands;
 
 namespace GiantBombPremiumBot
 {
@@ -33,22 +26,23 @@ namespace GiantBombPremiumBot
         public static List<PremiumBot> Shards { get; } = new List<PremiumBot>();
         #endregion
 
-        public static DateTime lastRun = new DateTime();
-        public static DateTime nextRun = DateTime.UtcNow;
+        static DateTime nextRun = DateTime.UtcNow;
 
-        public static Timer? timer = null;
-
-        public static UserManager userManager = new UserManager();
+        public static UserManager UserManager { get; set; } = new();
 
         public static void Main(string[] args)
             => MainAsync(args).ConfigureAwait(false).GetAwaiter().GetResult();
 
 
+#pragma warning disable IDE0060 // Remove unused parameter
         public static async Task MainAsync(string[] args)
+#pragma warning restore IDE0060 // Remove unused parameter
         {
+#pragma warning disable CS8622 // Nullability of reference types in type of parameter doesn't match the target delegate (possibly because of nullability attributes).
             Console.CancelKeyPress += Console_CancelKeyPress;
-            var cfg = new BotConfig();
-            var json = string.Empty;
+#pragma warning restore CS8622 // Nullability of reference types in type of parameter doesn't match the target delegate (possibly because of nullability attributes).
+            BotConfig? cfg = new();
+            string? json = string.Empty;
             if (!File.Exists("config.json"))
             {
                 json = JsonConvert.SerializeObject(cfg);
@@ -63,21 +57,22 @@ namespace GiantBombPremiumBot
             cfg = JsonConvert.DeserializeObject<BotConfig>(json);
 
             //Once an hour do the check in
-            timer = new Timer(
+            Timer timer = new(
     (e) => CheckAllUsers(),
     null,
     TimeSpan.FromSeconds(10),
     TimeSpan.FromHours(1));
 
 
-            var tskl = new List<Task>();
-            for (var i = 0; i < cfg.ShardCount; i++)
-            {
-                var bot = new PremiumBot(cfg, i);
-                Shards.Add(bot);
-                tskl.Add(bot.RunAsync());
-                await Task.Delay(7500).ConfigureAwait(false);
-            }
+            List<Task>? tskl = new();
+            if (cfg != null)
+                for (int i = 0; i < cfg.ShardCount; i++)
+                {
+                    PremiumBot? bot = new(cfg, i);
+                    Shards.Add(bot);
+                    tskl.Add(bot.RunAsync());
+                    await Task.Delay(7500).ConfigureAwait(false);
+                }
 
             await Task.WhenAll(tskl).ConfigureAwait(false);
 
@@ -94,7 +89,7 @@ namespace GiantBombPremiumBot
         {
             e.Cancel = true;
 
-            foreach (var shard in Shards)
+            foreach (PremiumBot? shard in Shards)
                 shard.StopAsync().GetAwaiter().GetResult(); // it dun matter
 
             CancelTokenSource.Cancel();
@@ -107,9 +102,9 @@ namespace GiantBombPremiumBot
                 return;
             }
 
-            await userManager.UpdateAllUsers();
+            await UserManager.UpdateAllUsers();
 
-            nextRun = userManager.GetNextCheckTime();
+            nextRun = UserManager.GetNextCheckTime();
         }
     }
 }

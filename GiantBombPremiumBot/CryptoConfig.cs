@@ -8,7 +8,7 @@ namespace GiantBombPremiumBot
     {
         public CryptoConfig()
         {
-            var json = string.Empty;
+            string? json = string.Empty;
             if (!File.Exists("config.json"))
             {
                 json = JsonConvert.SerializeObject(new CryptoConfig());
@@ -30,9 +30,9 @@ namespace GiantBombPremiumBot
     public sealed class CryptoJSON
     {
         [JsonProperty("key")]
-        public string Key { get; private set; } = String.Empty;
+        public string Key { get; private set; } = string.Empty;
 
         [JsonProperty("iv")]
-        public string IV { get; private set; } = String.Empty;
+        public string IV { get; private set; } = string.Empty;
     }
 }

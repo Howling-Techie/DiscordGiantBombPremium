@@ -21,7 +21,7 @@ namespace GiantBombPremiumBot
             this.Config = cfg;
 
             // discord instance config and the instance itself
-            var dcfg = new DiscordConfiguration
+            DiscordConfiguration? dcfg = new()
             {
                 AutoReconnect = true,
                 LargeThreshold = 250,
@@ -37,16 +37,16 @@ namespace GiantBombPremiumBot
             this.Discord = new DiscordClient(dcfg);
             // slash commands
 
-            var slash = Discord.UseSlashCommands();
+            SlashCommandsExtension? slash = Discord.UseSlashCommands();
             slash.RegisterCommands<PremiumModule>(106386929506873344);
             slash.ContextMenuErrored += async (s, e) =>
             {
                 if (e.Exception is ContextMenuExecutionChecksFailedException cmex)
                 {
-                    foreach (var check in cmex.FailedChecks)
+                    foreach (ContextMenuCheckBaseAttribute? check in cmex.FailedChecks)
                         if (check is RequireUserRole rol)
                         {
-                            var response = new DiscordInteractionResponseBuilder();
+                            DiscordInteractionResponseBuilder? response = new();
                             response.AsEphemeral(true);
                             response.WithContent($"Only <@{rol.RoleName}> users can run this command!");
                             await e.Context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, response);
@@ -57,9 +57,9 @@ namespace GiantBombPremiumBot
             this.Discord.Ready += this.Discord_Ready;
             this.Discord.SocketErrored += this.Discord_SocketError;
 
-            
+
             // build a dependency collection for commandsnext
-            var depco = new ServiceCollection();
+            ServiceCollection? depco = new();
 
             Discord.ComponentInteractionCreated += Discord_ComponentInteractionCreated;
 
@@ -76,87 +76,102 @@ namespace GiantBombPremiumBot
             if (e.Id == "verify")
             {
                 //Runs when the user hits the "verify" button. Check that a user has premium, with GetPremiumStatus running the check again if needed.
-                bool premium = await Program.userManager.UpdateUser(e.Interaction.User.Id);
-                if(premium)
+                bool premium = await UserManager.UpdateUser(e.Interaction.User.Id);
+                if (premium)
                 {
-                    DiscordInteractionResponseBuilder followup = new DiscordInteractionResponseBuilder();
+                    DiscordInteractionResponseBuilder followup = new();
                     followup.AsEphemeral(true);
                     followup.WithContent("You've got premium! <:Premium:852190261144453160> Congratulations!");
                     await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
                 }
                 else
                 {
-                    DiscordInteractionResponseBuilder followup = new DiscordInteractionResponseBuilder();
+                    DiscordInteractionResponseBuilder followup = new();
                     followup.AsEphemeral(true);
                     followup.WithContent("Weird, you don't have premium, did you do all of the above?");
                     await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
                 }
             }
-            if(e.Id == "reset")
+            if (e.Id == "reset")
             {
-                bool premium = await Program.userManager.UpdateUser(e.Interaction.User.Id);
+                bool premium = await UserManager.UpdateUser(e.Interaction.User.Id);
                 if (premium)
                 {
-                    DiscordInteractionResponseBuilder followup = new DiscordInteractionResponseBuilder();
+                    DiscordInteractionResponseBuilder followup = new();
                     followup.AsEphemeral(true);
                     followup.WithContent("You've already got premium! <:Premium:852190261144453160> Congratulations!");
                     await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
                 }
                 else
                 {
-                    Program.userManager.RemoveUser(e.Interaction.User.Id);
+                    UserManager.RemoveUser(e.Interaction.User.Id);
 
-                    DiscordInteractionResponseBuilder followup = new DiscordInteractionResponseBuilder();                    
+                    DiscordInteractionResponseBuilder followup = new();
                     followup.AsEphemeral(true);
-                    
-                    string regCode = Program.userManager.GetUserVerifCode(e.Interaction.User.Id);
-                    if (regCode == "" || regCode == null)
+
+                    string regCode = UserManager.GetUserVerifCode(e.Interaction.User.Id);
+                    if (regCode is "" or null)
                     {
                         string URLString = "https://www.giantbomb.com/app/premiumdiscordbot/get-code?deviceID=dcb";
-                        XmlTextReader reader = new XmlTextReader(URLString);
-                        while (reader.Read())
+                        XmlTextReader? reader = null;
+                        int attempts = 0;
+                        bool success = false;
+                        while (!success && attempts < 10)
                         {
-                            switch (reader.NodeType)
+                            try
                             {
-                                case XmlNodeType.Element:
-                                    if (reader.Name == "regCode")
-                                    {
-                                        regCode = reader.ReadString();
-                                    }
-                                    break;
-                                case XmlNodeType.Attribute:
-                                    break;
-                                case XmlNodeType.Text:
-                                    break;
-                                case XmlNodeType.EndElement:
-                                    break;
-                                default:
-                                    break;
+                                reader = new XmlTextReader(URLString);
+                                success = true;
+                            }
+                            catch
+                            {
+                                attempts++;
                             }
                         }
-                        if (regCode == "" || regCode == null)
+                        if (reader != null)
+                            while (reader.Read())
+                            {
+                                switch (reader.NodeType)
+                                {
+                                    case XmlNodeType.Element:
+                                        if (reader.Name == "regCode")
+                                        {
+                                            regCode = reader.ReadString();
+                                        }
+                                        break;
+                                    case XmlNodeType.Attribute:
+                                        break;
+                                    case XmlNodeType.Text:
+                                        break;
+                                    case XmlNodeType.EndElement:
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                        if (regCode is "" or null)
                         {
                             followup.WithContent("Oops, something went wrong :(");
                             await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, followup);
                             return;
                         }
                     }
-                    Program.userManager.AddUser(e.Interaction.User.Id, regCode);
+                    UserManager.AddUser(e.Interaction.User.Id, regCode);
                     followup.Content = "Okay, we've generated a new code! If you've still got any issues let us know in <#958417709446606869> and we'll see what we can do." +
                         "\n1. Visit the link below and enter the code **" + regCode + "**." +
                         "\n2. Hit the big \"Hook me Up!\" button." +
                         "\n3. Select \"Verify\" below, and we'll do the rest." +
                         "\n  If there's an issue verifying, hit \"Reset\" and we'll generate a new code.";
-                    List<DiscordComponent> row0 = new List<DiscordComponent>
-            {
+                    List<DiscordComponent> row0 = new()
+                    {
                 new DiscordLinkButtonComponent("https://www.giantbomb.com/app/premiumdiscordbot/activate", "giantbomb.com", false, new DiscordComponentEmoji(588743258130219010))
             };
-                    List<DiscordComponent> row1 = new List<DiscordComponent>
-            {
+                    List<DiscordComponent> row1 = new()
+                    {
                 new DiscordButtonComponent(ButtonStyle.Primary, "verify", "Verify", false, new DiscordComponentEmoji(859388130411282442))
             };
-                    List<DiscordComponent> row2 = new List<DiscordComponent>
-            {
+                    List<DiscordComponent> row2 = new()
+                    {
                 new DiscordButtonComponent(ButtonStyle.Danger, "reset", "Reset", false, new DiscordComponentEmoji(868122243845206087))
             };
                     followup.AddComponents(row0);
@@ -171,7 +186,7 @@ namespace GiantBombPremiumBot
 
         public async Task RunAsync()
         {
-            var act = new DiscordActivity("people type", ActivityType.Watching);
+            DiscordActivity? act = new("people type", ActivityType.Watching);
             await this.Discord.ConnectAsync(act, UserStatus.Idle).ConfigureAwait(false);
         }
 
@@ -182,7 +197,7 @@ namespace GiantBombPremiumBot
 
         private Task Discord_SocketError(DiscordClient client, SocketErrorEventArgs e)
         {
-            var ex = e.Exception is AggregateException ae ? ae.InnerException : e.Exception;
+            Exception? ex = e.Exception is AggregateException ae ? ae.InnerException : e.Exception;
             client.Logger.LogError(TestBotEventId, ex, "WebSocket threw an exception");
             return Task.CompletedTask;
         }
