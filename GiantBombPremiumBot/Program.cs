@@ -97,11 +97,13 @@ namespace GiantBombPremiumBot
 
         public static async void CheckAllUsers()
         {
+            //If a run isn't due, do nothing
             if (nextRun > DateTime.Now)
             {
                 return;
             }
 
+            //Otherwise, check the users!
             await UserManager.UpdateAllUsers();
 
             nextRun = UserManager.GetNextCheckTime();

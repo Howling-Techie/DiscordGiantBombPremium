@@ -37,7 +37,9 @@ namespace GiantBombPremiumBot
         [SlashCommand("Connect", "Link your Discord account with Giant Bomb")]
         public static async Task ConnectCommand(InteractionContext ctx)
         {
+            //This checks the database for the user, and if they're not present, generates a verification code
             await UserManager.UpdateUser(ctx.Member.Id);
+            //Checks if the user is already premium
             bool premium = await UserManager.GetPremiumStatus(ctx.User.Id);
             if (premium)
             {
@@ -50,6 +52,7 @@ namespace GiantBombPremiumBot
                 return;
             }
             string regCode = UserManager.GetUserVerifCode(ctx.User.Id);
+            //The regCode *should* have been generated in GetPremiumStatus but best to double check
             if (regCode is "" or null)
             {
                 string URLString = "https://www.giantbomb.com/app/premiumdiscordbot/get-code?deviceID=dcb";
@@ -101,6 +104,8 @@ namespace GiantBombPremiumBot
                 }
             }
             UserManager.AddUser(ctx.User.Id, regCode);
+
+            //Generate initial response
             DiscordInteractionResponseBuilder responseBuilder = new()
             {
                 Content = "Hi! To complete the process of linking your Giant Bomb account to your Discord account, just need to do a few quick things!" +
@@ -133,6 +138,7 @@ namespace GiantBombPremiumBot
         [SlashCommand("Recheck", "If you've resubbed to premium, run this command.")]
         public static async Task RecheckCommand(InteractionContext ctx)
         {
+            //A simple command a user can run to force the bot to re-check if a user is premium and update their roles accordingly
             await UserManager.UpdateUser(ctx.Member.Id);
             bool premium = await UserManager.UpdateUser(ctx.Member.Id);
             DiscordInteractionResponseBuilder responseBuilder = new()
@@ -147,7 +153,6 @@ namespace GiantBombPremiumBot
         [SlashCommand("Status", "Get your link status")]
         public static async Task StatusCommand(InteractionContext ctx)
         {
-            Console.WriteLine("Fetching status for " + ctx.Member.DisplayName);
             string status = await Program.UserManager.GetStatus(ctx.User.Id);
             DiscordInteractionResponseBuilder responseBuilder = new()
             {
@@ -161,6 +166,7 @@ namespace GiantBombPremiumBot
         [SlashCommand("Info", "About the bot")]
         public static async Task InfoCommand(InteractionContext ctx)
         {
+            //This will probably have to change, however unless all icons are changed, they must remain credited
             DiscordInteractionResponseBuilder responseBuilder = new()
             {
                 Content = "Bot programmed by Howling Techie, icons by @icons_discord on Twitter"
@@ -173,6 +179,7 @@ namespace GiantBombPremiumBot
         [SlashCommand("Unlink", "Remove the Giant Bomb account associated with this Discord account")]
         public static async Task UnlinkCommand(InteractionContext ctx)
         {
+            //Removes a user from being premium. Not sure what use this has but it's good to have.
             DiscordRole? premiumRole = null;
             DiscordRole? premiumRoleColour = null;
             //Search the server for the Premium and Primo roles
@@ -208,6 +215,28 @@ namespace GiantBombPremiumBot
         [RequireUserRole("Moderators")]
         public static async Task RemoveCommand(InteractionContext ctx, [Option("User", "User to remove")] DiscordUser user)
         {
+            DiscordMember member = await ctx.Guild.GetMemberAsync(user.Id);
+            //Mainly for debugging, removes a user from the database.
+            DiscordRole? premiumRole = null;
+            DiscordRole? premiumRoleColour = null;
+            //Search the server for the Premium and Primo roles
+            foreach (KeyValuePair<ulong, DiscordRole> role in member.Guild.Roles)
+            {
+                if (role.Value.Name == "Premium")
+                    premiumRole = role.Value;
+                else if (role.Value.Name == "Primo")
+                    premiumRoleColour = role.Value;
+            }
+            //Remove user's premium roles
+            if (member.Roles.Contains(premiumRole))
+            {
+                await member.RevokeRoleAsync(premiumRole);
+            }
+            if (member.Roles.Contains(premiumRoleColour))
+            {
+                await member.RevokeRoleAsync(premiumRoleColour);
+            }
+            //Remove from database
             UserManager.RemoveUser(user.Id);
             DiscordInteractionResponseBuilder responseBuilder = new()
             {
@@ -222,6 +251,7 @@ namespace GiantBombPremiumBot
         [RequireUserRole("Moderators")]
         public static async Task CleanUpCommand(InteractionContext ctx)
         {
+            //Checks all members on the server. USES A LOT OF TIME AND REQUESTS
             DiscordGuild? server = ctx.Guild;
             IReadOnlyDictionary<ulong, DiscordRole>? roles = server.Roles;
             DiscordRole? premiumRole = null;
@@ -232,7 +262,6 @@ namespace GiantBombPremiumBot
             {
                 Content = "Checking users that may need the premium role removed. This can take a few minutes."
             };
-            initResponseBuilder.AsEphemeral(true);
             await ctx.CreateResponseAsync(initResponseBuilder);
 
             IReadOnlyCollection<DiscordMember>? members = await server.GetAllMembersAsync();
@@ -260,14 +289,14 @@ namespace GiantBombPremiumBot
                     }
                     else
                         fine++;
-
                 }
+                //Take a break between checking, don't want to hammer the server too much
+                Task.Delay(50).Wait();
             }
             DiscordFollowupMessageBuilder responseBuilder = new()
             {
                 Content = "Revoked premium for " + revoked + " users."
             };
-            responseBuilder.AsEphemeral(true);
             await ctx.FollowUpAsync(responseBuilder);
             return;
         }
@@ -276,31 +305,17 @@ namespace GiantBombPremiumBot
         [RequireUserRole("Moderators")]
         public static async Task CheckAllCommand(InteractionContext ctx, [Option("Force", "Ignore expiration date? (Takes much longer)")] bool force)
         {
-            string connectionString = "Data Source=GBPremium.db;";
-
-            int rowCount = 0;
-            int usersChecked = 0;
-
-            using (SqliteConnection connection = new(connectionString))
+            DiscordInteractionResponseBuilder initResponseBuilder = new()
             {
-                connection.Open();
-
-                SqliteCommand? command = connection.CreateCommand();
-                string comText = "SELECT COUNT(*) FROM Users";
-                command.CommandText = comText;
-                rowCount = Convert.ToInt32(command.ExecuteScalar());
-
-                connection.Close();
-            }
-            DiscordInteractionResponseBuilder responseBuilder = new()
-            {
-                Content = "Reprocessing users in the database..."
+                Content = "Checking users that may need the premium role removed. This can take a few minutes."
             };
-            responseBuilder.AsEphemeral(false);
-            await ctx.CreateResponseAsync(responseBuilder);
+            await ctx.CreateResponseAsync(initResponseBuilder);
+
+            string connectionString = "Data Source=GBPremium.db;";
 
             List<ulong> userList = new();
 
+            //Get all users in the database
             using (SqliteConnection connection = new(connectionString))
             {
                 connection.Open();
@@ -329,34 +344,21 @@ namespace GiantBombPremiumBot
                 connection.Close();
             }
 
-            DiscordWebhookBuilder webhookBuilder = new()
-            {
-                Content = "Reprocessing users in the database...\nChecked " + usersChecked + " of " + rowCount + "."
-            };
-            await ctx.EditResponseAsync(webhookBuilder);
-
-            Task.Delay(1000).Wait();
-
+            //Check each user's status. Wait 50ms between checks to save hammering the server.
             foreach (ulong userID in userList)
             {
                 if (force)
                     await UserManager.UpdateUser(userID);
                 else
                     await UserManager.GetPremiumStatus(userID);
-                usersChecked++;
                 Task.Delay(50).Wait();
-                webhookBuilder.Content = "Reprocessing users in the database...\nChecked " + usersChecked + " of " + rowCount + ".";
-                if (!force)
-                {
-                    if (usersChecked % 10 == 0)
-                        await ctx.EditResponseAsync(webhookBuilder);
-                }
-                else
-                    await ctx.EditResponseAsync(webhookBuilder);
             }
 
-            webhookBuilder.Content = "Task completed!\nChecked " + usersChecked + " of " + rowCount + ".";
-            await ctx.EditResponseAsync(webhookBuilder);
+            DiscordFollowupMessageBuilder responseBuilder = new()
+            {
+                Content = "Check completed!"
+            };
+            await ctx.FollowUpAsync(responseBuilder);
             return;
         }
     }

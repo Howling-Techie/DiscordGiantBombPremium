@@ -10,7 +10,7 @@ namespace GiantBombPremiumBot
 {
     public class PremiumBot
     {
-        internal static EventId TestBotEventId { get; } = new EventId(1000, "TestBot");
+        internal static EventId PremiumEventId { get; } = new EventId(1000, "PremiumBot");
 
         private BotConfig Config { get; }
         public DiscordClient Discord { get; }
@@ -25,7 +25,7 @@ namespace GiantBombPremiumBot
             {
                 AutoReconnect = true,
                 LargeThreshold = 250,
-                MinimumLogLevel = LogLevel.Information,
+                MinimumLogLevel = LogLevel.Warning,
                 Token = this.Config.Token,
                 TokenType = TokenType.Bot,
                 ShardId = shardid,
@@ -35,9 +35,13 @@ namespace GiantBombPremiumBot
                 Intents = DiscordIntents.All // if 4013 is received, change to DiscordIntents.AllUnprivileged
             };
             this.Discord = new DiscordClient(dcfg);
-            // slash commands
 
+            // slash commands
             SlashCommandsExtension? slash = Discord.UseSlashCommands();
+            //Server ID of the Giant Bomb discord, the commands will only work in this server
+            //If this is ever needed for more servers, either clone the command with the other server ID, or remove the ID
+            //number from the command below to allow the bot to fully function on all servers it is added to.
+            //If the latter is done, commands need to be flushed.
             slash.RegisterCommands<PremiumModule>(106386929506873344);
             slash.ContextMenuErrored += async (s, e) =>
             {
@@ -65,7 +69,7 @@ namespace GiantBombPremiumBot
 
         }
 
-
+        //Handler for when buttons are interacted with
         private async Task Discord_ComponentInteractionCreated(DiscordClient sender, ComponentInteractionCreateEventArgs e)
         {
             if (e.Id == "null")
@@ -75,7 +79,7 @@ namespace GiantBombPremiumBot
             }
             if (e.Id == "verify")
             {
-                //Runs when the user hits the "verify" button. Check that a user has premium, with GetPremiumStatus running the check again if needed.
+                //Runs when the user hits the "verify" button. Check that a user has premium, and let them know the response.
                 bool premium = await UserManager.UpdateUser(e.Interaction.User.Id);
                 if (premium)
                 {
@@ -94,6 +98,8 @@ namespace GiantBombPremiumBot
             }
             if (e.Id == "reset")
             {
+                //If the user encounters an error while trying to link accounts they hit the reset button.
+                //If they already have premium, let them know it worked, otherwise restart the proccess.
                 bool premium = await UserManager.UpdateUser(e.Interaction.User.Id);
                 if (premium)
                 {
@@ -186,8 +192,9 @@ namespace GiantBombPremiumBot
 
         public async Task RunAsync()
         {
-            DiscordActivity? act = new("people type", ActivityType.Watching);
-            await this.Discord.ConnectAsync(act, UserStatus.Idle).ConfigureAwait(false);
+            //Connect to the server
+            DiscordActivity? act = new("over the premium users", ActivityType.Watching);
+            await this.Discord.ConnectAsync(act, UserStatus.Online).ConfigureAwait(false);
         }
 
         public async Task StopAsync() => await this.Discord.DisconnectAsync().ConfigureAwait(false);
@@ -198,7 +205,7 @@ namespace GiantBombPremiumBot
         private Task Discord_SocketError(DiscordClient client, SocketErrorEventArgs e)
         {
             Exception? ex = e.Exception is AggregateException ae ? ae.InnerException : e.Exception;
-            client.Logger.LogError(TestBotEventId, ex, "WebSocket threw an exception");
+            client.Logger.LogError(PremiumEventId, ex, "WebSocket threw an exception");
             return Task.CompletedTask;
         }
     }

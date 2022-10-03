@@ -125,6 +125,7 @@ namespace GiantBombPremiumBot
             }
             else
             {
+                //Premium and has an expiration date! Excellent
                 user.premiumStatus = true;
                 user.nextCheck = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(expiration).AddDays(1).ToLocalTime();
                 if (user.nextCheck < DateTime.Now)
@@ -158,7 +159,7 @@ namespace GiantBombPremiumBot
                 {
                     member = await guild.GetMemberAsync(user.id);
                 }
-                catch (Exception)
+                catch
                 {
                     RemoveUser(user.id);
                     return false;
@@ -176,12 +177,13 @@ namespace GiantBombPremiumBot
                 {
                     try
                     {
+                        //Sometimes it gets this far if the user is not on the server, despite the previous try catch...
                         await member.GrantRoleAsync(premiumRole);
                     }
                     catch
                     {
-                        RemoveUser(user.id);
-                        return false;
+                        //RemoveUser(user.id);
+                        //return false;
                     }
                 }
                 else
@@ -194,6 +196,8 @@ namespace GiantBombPremiumBot
                         }
                         catch
                         {
+                            RemoveUser(user.id);
+                            return false;
                         }
                     }
                     if (member.Roles.Contains(premiumRoleColour))
@@ -259,8 +263,7 @@ namespace GiantBombPremiumBot
             {
                 User? user = Database.GetUser(userID);
                 if (user != null)
-                    if (user.nextCheck < DateTime.UtcNow)
-                        await UpdateUser(userID);
+                    await UpdateUser(userID);
             }
         }
 
