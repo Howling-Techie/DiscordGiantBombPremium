@@ -174,13 +174,27 @@ namespace GiantBombPremiumBot
                 //If the user is premium, give them the premium role, otherwise revoke the role as well as the colour role if it's enabled
                 if (user.premiumStatus)
                 {
-                    await member.GrantRoleAsync(premiumRole);
+                    try
+                    {
+                        await member.GrantRoleAsync(premiumRole);
+                    }
+                    catch
+                    {
+                        RemoveUser(user.id);
+                        return false;
+                    }
                 }
                 else
                 {
                     if (member.Roles.Contains(premiumRole))
                     {
-                        await member.RevokeRoleAsync(premiumRole);
+                        try
+                        {
+                            await member.RevokeRoleAsync(premiumRole);
+                        }
+                        catch
+                        {
+                        }
                     }
                     if (member.Roles.Contains(premiumRoleColour))
                     {
