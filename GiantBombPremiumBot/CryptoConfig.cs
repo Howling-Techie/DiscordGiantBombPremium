@@ -9,7 +9,7 @@ namespace GiantBombPremiumBot
         public CryptoConfig()
         {
             string? json = string.Empty;
-            if (!File.Exists("config.json"))
+            if (!File.Exists("crypto.json"))
             {
                 json = JsonConvert.SerializeObject(new CryptoConfig());
                 File.WriteAllText("crypto.json", json, new UTF8Encoding(false));
