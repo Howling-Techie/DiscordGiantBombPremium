@@ -1,5 +1,6 @@
 ﻿using DSharpPlus.Entities;
 using Microsoft.Data.Sqlite;
+using System.Data;
 using System.Security.Cryptography;
 using System.Xml;
 
@@ -52,6 +53,39 @@ namespace GiantBombPremiumBot
                 return "";
             else
                 return user.verificationCode;
+        }
+
+        internal static List<User> GetAllUsers()
+        {
+            return Database.GetAllUsers();
+        }
+
+        internal static User? GetUser(ulong userID)
+        {
+            return Database.GetUser(userID);
+        }
+
+        //Gift discord premium to a user, requires them to have a linked account
+        internal static bool GiftUser(ulong userID, ulong additional)
+        {
+            User? user = Database.GetUser(userID);
+            if (user != null)
+            {
+                Database.UpdateUserStatus(userID, user.nextCheck.AddSeconds(additional), true);
+                return true;
+            }
+            else return false;
+        }
+        //Reset's a user's premium to what it should be
+        internal static async Task<bool> RevokeGiftUser(ulong userID)
+        {
+            User? user = Database.GetUser(userID);
+            if (user != null)
+            {
+                await UpdateUser(userID);
+                return true;
+            }
+            else return false;
         }
 
         //Update a given user's premium status, regardless of expiration date
@@ -113,15 +147,15 @@ namespace GiantBombPremiumBot
             }
             if (result != "success")
             {
-                //If the user is not premium, check in a week
+                //If the user is not premium, check in a day
                 user.premiumStatus = false;
-                user.nextCheck = DateTime.Now.AddDays(7);
+                user.nextCheck = DateTime.Now.AddDays(1);
             }
             else if (expiration == 0)
             {
-                //If the user is premium but no expiration date was provided, check in a week
-                user.premiumStatus = false;
-                user.nextCheck = DateTime.Now.AddDays(7);
+                //If the user is premium but no expiration date was provided, check in a day
+                user.premiumStatus = true;
+                user.nextCheck = DateTime.Now.AddDays(1);
             }
             else
             {
@@ -130,8 +164,8 @@ namespace GiantBombPremiumBot
                 user.nextCheck = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(expiration).AddDays(1).ToLocalTime();
                 if (user.nextCheck < DateTime.Now)
                 {
-                    //If an invalid expiration date has been returned, check in a week
-                    user.nextCheck = DateTime.Now.AddDays(7);
+                    //If an invalid expiration date has been returned, check in a day
+                    user.nextCheck = DateTime.Now.AddDays(1);
                 }
             }
 
@@ -258,7 +292,7 @@ namespace GiantBombPremiumBot
         //Update all users, regardless of when they are due
         public static async Task ForceUpdateAllUsers()
         {
-            List<ulong> users = Database.GetAllUsers();
+            List<ulong> users = Database.GetAllUserIDs();
             foreach (ulong userID in users)
             {
                 User? user = Database.GetUser(userID);
@@ -389,7 +423,7 @@ namespace GiantBombPremiumBot
             }
 
             //Updates a user's entry (assuming the exist in the database). Mainly used for updating a user after getting a new expiration date
-            public static void UpdateUserStatus(long userID, ulong nextCheck, bool status)
+            public static void UpdateUserStatus(ulong userID, DateTime nextCheck, bool status)
             {
                 byte[] encrID = Crypto.EncryptStringToBytes_Aes(userID.ToString(), cfg.Key, cfg.IV);
 
@@ -505,7 +539,45 @@ namespace GiantBombPremiumBot
             }
 
             //Get all users, return all regardless of next check in
-            internal static List<ulong> GetAllUsers()
+            internal static List<User> GetAllUsers()
+            {
+                string connectionString = "Data Source=GBPremium.db;";
+                List<User> users = new();
+
+                using (SqliteConnection connection = new(connectionString))
+                {
+                    connection.Open();
+
+                    SqliteCommand? command = connection.CreateCommand();
+                    string comText = "SELECT * FROM Users";
+                    command.CommandText = comText;
+                    using (SqliteDataReader? reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            while (reader.Read())
+                            {                                
+                                Stream idStream = reader.GetStream(0);
+                                byte[] idData = new byte[idStream.Length];
+                                idStream.Seek(0, SeekOrigin.Begin);
+                                idStream.Read(idData, 0, idData.Length);
+                                ulong userID = ulong.Parse(Crypto.DecryptStringFromBytes_Aes(idData, cfg.Key, cfg.IV));
+                                string verificationCode = reader.GetString(1);
+                                DateTime nextCheck = reader.GetDateTime(2);
+                                bool premium = bool.Parse(reader.GetString(3));
+                                User tempUser = new User(userID, verificationCode);
+                                tempUser.nextCheck = nextCheck;
+                                tempUser.premiumStatus = premium;
+                                users.Add(tempUser);
+                            }
+                        }
+                    }
+                    connection.Close();
+                }
+                return users;
+            }
+
+            internal static List<ulong> GetAllUserIDs()
             {
                 string connectionString = "Data Source=GBPremium.db;";
                 List<ulong> allUsers = new();
@@ -518,13 +590,14 @@ namespace GiantBombPremiumBot
                     string comText = "SELECT UserID FROM Users";
                     command.CommandText = comText;
                     using (SqliteDataReader? reader = command.ExecuteReader())
-                    {
-                        while (reader.Read())
+                    while (reader.Read())
                         {
-                            allUsers.Add(ulong.Parse(reader.GetString(0)));
-
+                            Stream idStream = reader.GetStream(0);
+                            byte[] idData = new byte[idStream.Length];
+                            idStream.Seek(0, SeekOrigin.Begin);
+                            idStream.Read(idData, 0, idData.Length);
+                            allUsers.Add(ulong.Parse(Crypto.DecryptStringFromBytes_Aes(idData, cfg.Key, cfg.IV)));
                         }
-                    }
                     connection.Close();
                 }
                 return allUsers;

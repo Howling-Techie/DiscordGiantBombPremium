@@ -11,11 +11,13 @@
     <PackageReference Include="DSharpPlus" Version="4.3.0-nightly-01141" />
     <PackageReference Include="DSharpPlus.SlashCommands" Version="4.3.0-nightly-01141" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.0-preview.6.22329.4" />
+    <PackageReference Include="MySqlConnector" Version="2.1.13" />
+    <PackageReference Include="NetCoreServer" Version="6.7.0" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="config.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
     <None Update="crypto.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>

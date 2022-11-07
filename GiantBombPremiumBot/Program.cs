@@ -13,7 +13,9 @@
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
 
+using DSharpPlus.Entities;
 using Newtonsoft.Json;
+using System.Net;
 using System.Text;
 
 namespace GiantBombPremiumBot
@@ -63,6 +65,21 @@ namespace GiantBombPremiumBot
     TimeSpan.FromSeconds(10),
     TimeSpan.FromHours(1));
 
+            // MAYBE YOU WANT TO BE ABLE TO MONITOR THE BOT REMOTELY USING A PREMIUM BOT API AND WEB DASHBOARD? MUCH TO THINK ABOUT
+            /* 
+            // HTTP server port
+            int port = 7070;
+
+            Console.WriteLine($"HTTP server port: {port}");
+
+            // Create a new HTTP server
+            var server = new HttpDiscordServer(IPAddress.Any, port);
+
+            // Start the server
+            Console.Write("Server starting...");
+            server.Start();
+            Console.WriteLine("Done!");
+            */
 
             List<Task>? tskl = new();
             if (cfg != null)
@@ -75,6 +92,7 @@ namespace GiantBombPremiumBot
                 }
 
             await Task.WhenAll(tskl).ConfigureAwait(false);
+
 
             try
             {
@@ -107,6 +125,15 @@ namespace GiantBombPremiumBot
             await UserManager.UpdateAllUsers();
 
             nextRun = UserManager.GetNextCheckTime();
+        }
+
+        internal static async Task<List<DiscordMember>> GetAllGuildMembers(ulong guildID)
+        {
+            if (Shards[0].Discord.Guilds.ContainsKey(guildID))
+            {
+                return (await Shards[0].Discord.Guilds[guildID].GetAllMembersAsync()).ToList();
+            }
+            return new List<DiscordMember>();
         }
     }
 }
